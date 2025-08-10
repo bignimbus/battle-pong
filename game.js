@@ -391,8 +391,14 @@ class Game {
             
             this.keys[e.code] = true;
             
-            if (e.code === 'Space' && this.gameState === 'waiting') {
-                this.start();
+            if (e.code === 'Space') {
+                if (this.gameState === 'waiting') {
+                    this.start();
+                } else if (this.gameState === 'ended') {
+                    this.reset();
+                    this.gameState = 'waiting';
+                    statusMessage.textContent = 'Press SPACE to start!';
+                }
             }
         });
         
