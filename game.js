@@ -375,6 +375,7 @@ class Game {
         this.aiDifficulty = 5;
         this.ai = null;
         this.keys = {};
+        this.isPaused = false;
         
         this.setupEventListeners();
         this.setupMenuListeners();
@@ -382,6 +383,12 @@ class Game {
 
     setupEventListeners() {
         document.addEventListener('keydown', (e) => {
+            // Handle pause
+            if ((e.code === 'KeyP' || e.code === 'Escape') && this.gameState === 'playing') {
+                this.togglePause();
+                return;
+            }
+            
             this.keys[e.code] = true;
             
             if (e.code === 'Space' && this.gameState === 'waiting') {
@@ -520,7 +527,7 @@ class Game {
     }
 
     update() {
-        if (this.gameState !== 'playing') return;
+        if (this.gameState !== 'playing' || this.isPaused) return;
         
         this.handleInput();
         
@@ -633,8 +640,39 @@ class Game {
         this.ball.draw();
         
         this.projectiles.forEach(projectile => projectile.draw());
+        
+        // Draw pause indicator
+        if (this.isPaused) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 48px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+            
+            ctx.font = '24px Courier New';
+            ctx.fillText('Press P or ESC to resume', canvas.width / 2, canvas.height / 2 + 60);
+            
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
     }
 
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+            arcadeAudio.stopMusic();
+            statusMessage.textContent = 'Game Paused - Press P or ESC to resume';
+        } else {
+            if (!arcadeAudio.musicMuted) {
+                arcadeAudio.startMusic();
+            }
+            statusMessage.textContent = '';
+        }
+    }
+    
     run() {
         this.update();
         if (this.gameState !== 'menu') {
