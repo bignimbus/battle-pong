@@ -151,26 +151,37 @@ class Ball {
         ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
     }
 
-    randomizeDirection() {
+    randomizeDirection(shooterOwner = null) {
         // Generate angle avoiding too vertical (near 90° or 270°)
         const minHorizontalAngle = Math.PI / 6; // 30 degrees from vertical
+        const maxVerticalAngle = Math.PI / 3; // 60 degrees spread
         let angle;
         
-        // Pick a random quadrant and generate angle within safe range
-        const quadrant = Math.floor(Math.random() * 4);
-        switch(quadrant) {
-            case 0: // Top-right
-                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + minHorizontalAngle;
-                break;
-            case 1: // Top-left
-                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + Math.PI/2 + minHorizontalAngle;
-                break;
-            case 2: // Bottom-left
-                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + Math.PI + minHorizontalAngle;
-                break;
-            case 3: // Bottom-right
-                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + 3*Math.PI/2 + minHorizontalAngle;
-                break;
+        if (shooterOwner === 'player1') {
+            // Ball should move toward player 2 (right)
+            // Random angle between 30° and -30° (right side)
+            angle = (Math.random() - 0.5) * maxVerticalAngle;
+        } else if (shooterOwner === 'player2') {
+            // Ball should move toward player 1 (left)
+            // Random angle between 150° and 210° (left side)
+            angle = Math.PI + (Math.random() - 0.5) * maxVerticalAngle;
+        } else {
+            // No shooter specified, use original random behavior
+            const quadrant = Math.floor(Math.random() * 4);
+            switch(quadrant) {
+                case 0: // Top-right
+                    angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + minHorizontalAngle;
+                    break;
+                case 1: // Top-left
+                    angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + Math.PI/2 + minHorizontalAngle;
+                    break;
+                case 2: // Bottom-left
+                    angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + Math.PI + minHorizontalAngle;
+                    break;
+                case 3: // Bottom-right
+                    angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + 3*Math.PI/2 + minHorizontalAngle;
+                    break;
+            }
         }
         
         if (this.hitCount < this.maxHits) {
@@ -575,7 +586,7 @@ class Game {
             projectile.update();
             
             if (projectile.checkBallCollision(this.ball)) {
-                this.ball.randomizeDirection();
+                this.ball.randomizeDirection(projectile.owner);
                 this.updateHitCounter();
                 arcadeAudio.playHitSound();
                 return false;
