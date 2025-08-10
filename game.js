@@ -406,6 +406,8 @@ class Game {
         this.ai = null;
         this.keys = {};
         this.isPaused = false;
+        this.countdownTimer = 0;
+        this.countdownValue = 0;
         
         this.setupEventListeners();
         this.setupMenuListeners();
@@ -515,7 +517,7 @@ class Game {
         arcadeAudio.startMusic();
     }
 
-    handleInput() {
+    handleInput(countdownMode = false) {
         this.player1.dy = 0;
         
         if (this.gameMode === 'twoPlayer') {
@@ -523,7 +525,8 @@ class Game {
             if (this.keys[this.player2.controls.up]) this.player2.dy = -1;
             if (this.keys[this.player2.controls.down]) this.player2.dy = 1;
             
-            if (this.keys[this.player2.controls.shoot]) {
+            // No shooting during countdown
+            if (!countdownMode && this.keys[this.player2.controls.shoot]) {
                 const player2HasProjectile = this.projectiles.some(p => p.owner === 'player2' && p.active);
                 if (!player2HasProjectile && this.player2.shoot()) {
                     this.projectiles.push(new Projectile(
@@ -541,7 +544,8 @@ class Game {
         if (this.keys[this.player1.controls.up]) this.player1.dy = -1;
         if (this.keys[this.player1.controls.down]) this.player1.dy = 1;
         
-        if (this.keys[this.player1.controls.shoot]) {
+        // No shooting during countdown
+        if (!countdownMode && this.keys[this.player1.controls.shoot]) {
             const player1HasProjectile = this.projectiles.some(p => p.owner === 'player1' && p.active);
             if (!player1HasProjectile && this.player1.shoot()) {
                 this.projectiles.push(new Projectile(
@@ -558,6 +562,31 @@ class Game {
 
     update() {
         if (this.gameState !== 'playing' || this.isPaused) return;
+        
+        // Handle countdown after scoring
+        if (this.countdownTimer > 0) {
+            this.countdownTimer--;
+            
+            // Update countdown value for display (3, 2, 1)
+            const newValue = Math.ceil(this.countdownTimer / 60);
+            if (newValue !== this.countdownValue && newValue > 0) {
+                this.countdownValue = newValue;
+                arcadeAudio.playHitSound(); // Use hit sound for countdown beeps
+            }
+            
+            // Players can move during countdown
+            this.handleInput(true); // true = countdown mode (no shooting)
+            this.player1.update();
+            this.player2.update();
+            
+            // AI can move but not shoot during countdown
+            if (this.gameMode === 'ai' && this.ai) {
+                this.ai.update(this.ball, this.projectiles, this.player1);
+            }
+            
+            // Ball doesn't move during countdown
+            return;
+        }
         
         this.handleInput();
         
@@ -612,8 +641,12 @@ class Game {
             this.updateScore();
             arcadeAudio.playScoreSound();
             this.checkWin();
-            this.ball.reset(true);
-            this.updateHitCounter();
+            if (this.gameState === 'playing') { // Only countdown if game not ended
+                this.ball.reset(true);
+                this.updateHitCounter();
+                this.projectiles = []; // Clear all projectiles
+                this.startCountdown();
+            }
         }
         
         if (this.ball.checkPaddleCollision(this.player2)) {
@@ -621,8 +654,12 @@ class Game {
             this.updateScore();
             arcadeAudio.playScoreSound();
             this.checkWin();
-            this.ball.reset(false);
-            this.updateHitCounter();
+            if (this.gameState === 'playing') { // Only countdown if game not ended
+                this.ball.reset(false);
+                this.updateHitCounter();
+                this.projectiles = []; // Clear all projectiles
+                this.startCountdown();
+            }
         }
     }
 
@@ -688,6 +725,23 @@ class Game {
             ctx.textAlign = 'left';
             ctx.textBaseline = 'alphabetic';
         }
+        
+        // Draw countdown (above the ball position)
+        if (this.countdownValue > 0 && this.countdownTimer > 0) {
+            ctx.fillStyle = '#ffff00';
+            ctx.font = 'bold 72px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            // Position countdown above the ball
+            ctx.fillText(this.countdownValue, canvas.width / 2, canvas.height / 2 - 100);
+            
+            ctx.font = '24px Courier New';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('Get Ready!', canvas.width / 2, canvas.height / 2 - 50);
+            
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
     }
 
     togglePause() {
@@ -701,6 +755,11 @@ class Game {
             }
             statusMessage.textContent = '';
         }
+    }
+    
+    startCountdown() {
+        this.countdownTimer = 180; // 3 seconds at 60 FPS
+        this.countdownValue = 3;
     }
     
     run() {
