@@ -1,20 +1,31 @@
+const titleScreen = document.getElementById('titleScreen');
+const difficultyScreen = document.getElementById('difficultyScreen');
+const gameContainer = document.getElementById('gameContainer');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const statusMessage = document.getElementById('statusMessage');
 const score1Element = document.getElementById('score1');
 const score2Element = document.getElementById('score2');
+const player2Name = document.getElementById('player2Name');
+const player2Controls = document.getElementById('player2Controls');
 
-canvas.width = 800;
-canvas.height = 400;
+const twoPlayerBtn = document.getElementById('twoPlayerBtn');
+const aiPlayerBtn = document.getElementById('aiPlayerBtn');
+const backBtn = document.getElementById('backBtn');
+const menuBtn = document.getElementById('menuBtn');
+const difficultyButtons = document.querySelectorAll('.difficulty-button');
 
-const PADDLE_WIDTH = 15;
-const PADDLE_HEIGHT = 80;
-const BALL_SIZE = 12;
-const PROJECTILE_SIZE = 8;
-const PADDLE_SPEED = 5;
-const PROJECTILE_SPEED = 4;
-const INITIAL_BALL_SPEED = 4;
-const BALL_SPEED_INCREMENT = 0.5;
+canvas.width = 1200;
+canvas.height = 600;
+
+const PADDLE_WIDTH = 20;
+const PADDLE_HEIGHT = 100;
+const BALL_SIZE = 15;
+const PROJECTILE_SIZE = 10;
+const PADDLE_SPEED = 7;
+const PROJECTILE_SPEED = 6;
+const INITIAL_BALL_SPEED = 6;
+const BALL_SPEED_INCREMENT = 0.75;
 const IMMOBILIZE_DURATION = 2000;
 const PROJECTILE_COOLDOWN = 500;
 const WIN_SCORE = 5;
@@ -194,15 +205,150 @@ class Projectile {
     }
 }
 
+class AI {
+    constructor(paddle, difficulty) {
+        this.paddle = paddle;
+        this.difficulty = difficulty;
+        
+        // More dramatic difficulty scaling
+        const difficultySettings = {
+            1: { reaction: 800, accuracy: 0.15, shoot: 0.002, dodge: 0.0, prediction: 0.1, moveSpeed: 0.3 },
+            2: { reaction: 600, accuracy: 0.25, shoot: 0.004, dodge: 0.05, prediction: 0.2, moveSpeed: 0.4 },
+            3: { reaction: 450, accuracy: 0.35, shoot: 0.006, dodge: 0.1, prediction: 0.3, moveSpeed: 0.5 },
+            4: { reaction: 350, accuracy: 0.45, shoot: 0.008, dodge: 0.2, prediction: 0.4, moveSpeed: 0.6 },
+            5: { reaction: 250, accuracy: 0.55, shoot: 0.012, dodge: 0.35, prediction: 0.5, moveSpeed: 0.7 },
+            6: { reaction: 180, accuracy: 0.65, shoot: 0.018, dodge: 0.5, prediction: 0.6, moveSpeed: 0.8 },
+            7: { reaction: 120, accuracy: 0.75, shoot: 0.025, dodge: 0.65, prediction: 0.7, moveSpeed: 0.9 },
+            8: { reaction: 80, accuracy: 0.85, shoot: 0.035, dodge: 0.8, prediction: 0.8, moveSpeed: 1.0 },
+            9: { reaction: 40, accuracy: 0.92, shoot: 0.045, dodge: 0.9, prediction: 0.9, moveSpeed: 1.1 },
+            10: { reaction: 10, accuracy: 0.98, shoot: 0.06, dodge: 0.98, prediction: 0.98, moveSpeed: 1.2 }
+        };
+        
+        const settings = difficultySettings[difficulty];
+        this.reactionTime = settings.reaction;
+        this.accuracy = settings.accuracy;
+        this.shootProbability = settings.shoot;
+        this.dodgeAbility = settings.dodge;
+        this.predictionAbility = settings.prediction;
+        this.moveSpeedMultiplier = settings.moveSpeed;
+        this.lastDecision = Date.now();
+        this.targetY = paddle.y;
+    }
+
+    update(ball, projectiles, opponentPaddle) {
+        const now = Date.now();
+        
+        if (now - this.lastDecision > this.reactionTime) {
+            this.lastDecision = now;
+            
+            const incomingProjectile = projectiles.find(p => 
+                p.owner === 'player1' && 
+                p.dx > 0 && 
+                p.x < this.paddle.x
+            );
+            
+            // Priority 1: Dodge incoming projectiles
+            if (incomingProjectile && Math.random() < this.dodgeAbility) {
+                const projFutureY = incomingProjectile.y;
+                const dodgeDistance = 40 + (this.difficulty * 5);
+                
+                if (projFutureY < this.paddle.y + this.paddle.height / 2) {
+                    this.targetY = Math.min(canvas.height - this.paddle.height, this.paddle.y + dodgeDistance);
+                } else {
+                    this.targetY = Math.max(0, this.paddle.y - dodgeDistance);
+                }
+            } 
+            // Priority 2: Avoid the ball
+            else if (ball.dx > 0 && ball.x > canvas.width * (0.5 - this.predictionAbility * 0.3)) {
+                // Predict where ball will be when it reaches paddle
+                const timeToPaddle = (this.paddle.x - ball.x) / Math.abs(ball.dx);
+                const predictedY = ball.y + (ball.dy * timeToPaddle * this.predictionAbility);
+                
+                const ballFutureY = Math.random() < this.predictionAbility ? predictedY : ball.y;
+                const dangerZone = this.paddle.height * (0.8 - this.accuracy * 0.6);
+                
+                // Check if ball is heading toward paddle
+                const ballInDangerZone = ballFutureY >= this.paddle.y - 10 && 
+                                        ballFutureY <= this.paddle.y + this.paddle.height + 10;
+                
+                if (ballInDangerZone) {
+                    // AI tries to avoid the ball based on difficulty
+                    if (Math.random() < this.accuracy) {
+                        // Smart avoidance: move to opposite side of where ball is heading
+                        if (ballFutureY < this.paddle.y + this.paddle.height / 2) {
+                            this.targetY = Math.min(canvas.height - this.paddle.height, ballFutureY + this.paddle.height + 20);
+                        } else {
+                            this.targetY = Math.max(0, ballFutureY - this.paddle.height - 20);
+                        }
+                    } else {
+                        // Panic move (less accurate)
+                        this.targetY = Math.random() < 0.5 ? 0 : canvas.height - this.paddle.height;
+                    }
+                } else {
+                    // Position strategically when ball is safe
+                    const centerY = canvas.height / 2 - this.paddle.height / 2;
+                    const optimalY = ballFutureY < canvas.height / 2 ? 
+                                   canvas.height * 0.75 - this.paddle.height / 2 : 
+                                   canvas.height * 0.25 - this.paddle.height / 2;
+                    
+                    this.targetY = Math.random() < this.accuracy ? optimalY : centerY;
+                }
+            } else {
+                // Default positioning when ball is far away
+                this.targetY = canvas.height / 2 - this.paddle.height / 2;
+            }
+            
+            // Add error based on difficulty (less error at higher difficulties)
+            const maxError = 100 * (1 - this.accuracy);
+            const error = (Math.random() - 0.5) * maxError;
+            this.targetY += error;
+            
+            // Clamp target position
+            this.targetY = Math.max(0, Math.min(canvas.height - this.paddle.height, this.targetY));
+        }
+        
+        // Movement execution with speed multiplier
+        const diff = this.targetY - this.paddle.y;
+        const moveThreshold = 5 / this.moveSpeedMultiplier;
+        
+        if (Math.abs(diff) > moveThreshold) {
+            // Apply movement speed multiplier (slower at low difficulties)
+            const moveSpeed = Math.sign(diff) * this.moveSpeedMultiplier;
+            this.paddle.dy = moveSpeed;
+        } else {
+            this.paddle.dy = 0;
+        }
+        
+        // Shooting logic - more strategic at higher difficulties
+        const player2HasProjectile = projectiles.some(p => p.owner === 'player2' && p.active);
+        if (!player2HasProjectile && Math.random() < this.shootProbability) {
+            // Smarter shooting at higher difficulties
+            const tacticalShoot = this.difficulty >= 5 && (
+                (ball.dx < 0 && ball.x < canvas.width * 0.5) || // Ball coming toward opponent
+                (Math.abs(ball.y - opponentPaddle.y - opponentPaddle.height/2) < 50) || // Ball near opponent
+                (opponentPaddle.immobilized === false && Math.random() < this.accuracy * 0.5) // Strategic immobilization
+            );
+            
+            const randomShoot = Math.random() < this.shootProbability;
+            
+            if (tacticalShoot || randomShoot) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+}
+
 class Game {
     constructor() {
-        this.player1 = new Paddle(30, canvas.height / 2 - PADDLE_HEIGHT / 2, '#00ffff', {
+        this.player1 = new Paddle(40, canvas.height / 2 - PADDLE_HEIGHT / 2, '#00ffff', {
             up: 'KeyW',
             down: 'KeyS',
             shoot: 'KeyQ'
         });
         
-        this.player2 = new Paddle(canvas.width - 30 - PADDLE_WIDTH, canvas.height / 2 - PADDLE_HEIGHT / 2, '#ff00ff', {
+        this.player2 = new Paddle(canvas.width - 40 - PADDLE_WIDTH, canvas.height / 2 - PADDLE_HEIGHT / 2, '#ff00ff', {
             up: 'ArrowUp',
             down: 'ArrowDown',
             shoot: 'ArrowLeft'
@@ -212,17 +358,21 @@ class Game {
         this.projectiles = [];
         this.score1 = 0;
         this.score2 = 0;
-        this.gameState = 'waiting';
+        this.gameState = 'menu';
+        this.gameMode = null;
+        this.aiDifficulty = 5;
+        this.ai = null;
         this.keys = {};
         
         this.setupEventListeners();
+        this.setupMenuListeners();
     }
 
     setupEventListeners() {
         document.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
             
-            if (e.code === 'Space' && this.gameState !== 'playing') {
+            if (e.code === 'Space' && this.gameState === 'waiting') {
                 this.start();
             }
         });
@@ -232,26 +382,110 @@ class Game {
         });
     }
 
-    start() {
-        this.gameState = 'playing';
+    setupMenuListeners() {
+        twoPlayerBtn.addEventListener('click', () => {
+            this.gameMode = 'twoPlayer';
+            this.showGameScreen();
+            player2Name.textContent = 'Player 2';
+            player2Controls.innerHTML = `
+                <h3>Player 2</h3>
+                <p>Move: ↑/↓</p>
+                <p>Shoot: ←</p>
+            `;
+        });
+
+        aiPlayerBtn.addEventListener('click', () => {
+            this.showDifficultyScreen();
+        });
+
+        backBtn.addEventListener('click', () => {
+            this.showTitleScreen();
+        });
+
+        menuBtn.addEventListener('click', () => {
+            this.gameState = 'menu';
+            this.showTitleScreen();
+        });
+
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                this.aiDifficulty = parseInt(button.dataset.level);
+                this.gameMode = 'ai';
+                this.ai = new AI(this.player2, this.aiDifficulty);
+                this.showGameScreen();
+                player2Name.textContent = `AI (Lvl ${this.aiDifficulty})`;
+                player2Controls.innerHTML = `
+                    <h3>AI Level ${this.aiDifficulty}</h3>
+                    <p>Controlled by AI</p>
+                `;
+            });
+        });
+    }
+
+    showTitleScreen() {
+        titleScreen.style.display = 'flex';
+        difficultyScreen.style.display = 'none';
+        gameContainer.style.display = 'none';
+    }
+
+    showDifficultyScreen() {
+        titleScreen.style.display = 'none';
+        difficultyScreen.style.display = 'flex';
+        gameContainer.style.display = 'none';
+    }
+
+    showGameScreen() {
+        titleScreen.style.display = 'none';
+        difficultyScreen.style.display = 'none';
+        gameContainer.style.display = 'flex';
+        this.gameState = 'waiting';
+        this.reset();
+    }
+
+    reset() {
         this.score1 = 0;
         this.score2 = 0;
         this.ball.reset();
         this.projectiles = [];
+        this.player1.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
+        this.player2.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
         this.player1.immobilized = false;
         this.player2.immobilized = false;
-        statusMessage.textContent = '';
+        statusMessage.textContent = 'Press SPACE to start!';
         this.updateScore();
+    }
+
+    start() {
+        this.gameState = 'playing';
+        this.ball.reset();
+        this.projectiles = [];
+        statusMessage.textContent = '';
     }
 
     handleInput() {
         this.player1.dy = 0;
-        this.player2.dy = 0;
+        
+        if (this.gameMode === 'twoPlayer') {
+            this.player2.dy = 0;
+            if (this.keys[this.player2.controls.up]) this.player2.dy = -1;
+            if (this.keys[this.player2.controls.down]) this.player2.dy = 1;
+            
+            if (this.keys[this.player2.controls.shoot]) {
+                const player2HasProjectile = this.projectiles.some(p => p.owner === 'player2' && p.active);
+                if (!player2HasProjectile && this.player2.shoot()) {
+                    this.projectiles.push(new Projectile(
+                        this.player2.x,
+                        this.player2.y + this.player2.height / 2,
+                        -1,
+                        this.player2.color,
+                        'player2'
+                    ));
+                }
+            }
+        }
         
         if (this.keys[this.player1.controls.up]) this.player1.dy = -1;
         if (this.keys[this.player1.controls.down]) this.player1.dy = 1;
-        if (this.keys[this.player2.controls.up]) this.player2.dy = -1;
-        if (this.keys[this.player2.controls.down]) this.player2.dy = 1;
         
         if (this.keys[this.player1.controls.shoot]) {
             const player1HasProjectile = this.projectiles.some(p => p.owner === 'player1' && p.active);
@@ -265,25 +499,28 @@ class Game {
                 ));
             }
         }
-        
-        if (this.keys[this.player2.controls.shoot]) {
-            const player2HasProjectile = this.projectiles.some(p => p.owner === 'player2' && p.active);
-            if (!player2HasProjectile && this.player2.shoot()) {
-                this.projectiles.push(new Projectile(
-                    this.player2.x,
-                    this.player2.y + this.player2.height / 2,
-                    -1,
-                    this.player2.color,
-                    'player2'
-                ));
-            }
-        }
     }
 
     update() {
         if (this.gameState !== 'playing') return;
         
         this.handleInput();
+        
+        if (this.gameMode === 'ai' && this.ai) {
+            const shouldShoot = this.ai.update(this.ball, this.projectiles, this.player1);
+            if (shouldShoot) {
+                const player2HasProjectile = this.projectiles.some(p => p.owner === 'player2' && p.active);
+                if (!player2HasProjectile && this.player2.shoot()) {
+                    this.projectiles.push(new Projectile(
+                        this.player2.x,
+                        this.player2.y + this.player2.height / 2,
+                        -1,
+                        this.player2.color,
+                        'player2'
+                    ));
+                }
+            }
+        }
         
         this.player1.update();
         this.player2.update();
@@ -336,7 +573,8 @@ class Game {
             statusMessage.innerHTML = '<span class="winner-message" style="color: #00ffff;">Player 1 Wins! Press SPACE to play again</span>';
         } else if (this.score2 >= WIN_SCORE) {
             this.gameState = 'ended';
-            statusMessage.innerHTML = '<span class="winner-message" style="color: #ff00ff;">Player 2 Wins! Press SPACE to play again</span>';
+            const winner = this.gameMode === 'ai' ? `AI Level ${this.aiDifficulty}` : 'Player 2';
+            statusMessage.innerHTML = `<span class="winner-message" style="color: #ff00ff;">${winner} Wins! Press SPACE to play again</span>`;
         }
     }
 
@@ -363,7 +601,9 @@ class Game {
 
     run() {
         this.update();
-        this.draw();
+        if (this.gameState !== 'menu') {
+            this.draw();
+        }
         requestAnimationFrame(() => this.run());
     }
 }

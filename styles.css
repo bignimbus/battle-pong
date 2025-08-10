@@ -130,6 +130,10 @@ body {
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), 0 0 60px rgba(255, 0, 255, 0.2);
     background: radial-gradient(ellipse at center, rgba(16, 16, 32, 0.9), rgba(0, 0, 0, 0.95));
+    max-width: 95vw;
+    max-height: 70vh;
+    width: auto;
+    height: auto;
 }
 
 .game-status {
@@ -169,4 +173,162 @@ body {
     to {
         transform: scale(1.1);
     }
+}
+
+.title-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.main-title {
+    font-size: 5em;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    background: linear-gradient(45deg, #00ffff, #ff00ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+.game-description {
+    font-size: 1.2em;
+    margin-bottom: 50px;
+    opacity: 0.8;
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+.menu-buttons {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.menu-button {
+    padding: 20px 40px;
+    font-size: 1.5em;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.menu-button:hover {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: #00ffff;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 255, 255, 0.3);
+}
+
+.difficulty-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.difficulty-screen h2 {
+    font-size: 3em;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    color: #00ffff;
+}
+
+.difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+    margin-bottom: 40px;
+    max-width: 600px;
+}
+
+.difficulty-button {
+    width: 100px;
+    height: 100px;
+    font-size: 2em;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.difficulty-button span {
+    font-size: 0.3em;
+    position: absolute;
+    bottom: 8px;
+    opacity: 0.7;
+    text-transform: uppercase;
+}
+
+.difficulty-button:hover {
+    transform: scale(1.1);
+    border-color: #ff00ff;
+    background: rgba(255, 0, 255, 0.2);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+}
+
+.difficulty-button[data-level="1"],
+.difficulty-button[data-level="2"],
+.difficulty-button[data-level="3"] {
+    border-color: rgba(0, 255, 0, 0.5);
+}
+
+.difficulty-button[data-level="4"],
+.difficulty-button[data-level="5"],
+.difficulty-button[data-level="6"],
+.difficulty-button[data-level="7"] {
+    border-color: rgba(255, 255, 0, 0.5);
+}
+
+.difficulty-button[data-level="8"],
+.difficulty-button[data-level="9"],
+.difficulty-button[data-level="10"] {
+    border-color: rgba(255, 0, 0, 0.5);
+}
+
+.back-button, .back-to-menu {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.back-button:hover, .back-to-menu:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.back-to-menu {
+    margin-top: 20px;
 }
