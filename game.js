@@ -811,10 +811,18 @@ class Game {
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Simple dotted center line
-        ctx.fillStyle = '#ffffff';
-        for (let i = 0; i < canvas.height; i += 20) {
-            ctx.fillRect(canvas.width / 2 - 2, i, 4, 10);
+        // Simple dotted center line (hide during countdowns, scoring, and victory)
+        const showCenterLine = this.gameState === 'playing' && 
+                               this.countdownTimer === 0 && 
+                               this.freezeTimer === 0 &&
+                               !this.victoryAnimation &&
+                               !this.isPaused;
+        
+        if (showCenterLine) {
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < canvas.height; i += 20) {
+                ctx.fillRect(canvas.width / 2 - 2, i, 4, 10);
+            }
         }
         
         // Draw particles behind paddles
