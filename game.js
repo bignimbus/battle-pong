@@ -418,6 +418,7 @@ class Game {
         this.freezeTimer = 0;
         this.flashingPaddle = null; // 'player1' or 'player2'
         this.lastScorer = null; // Track who scored last
+        this.lastShootTime = { player1: 0, player2: 0 }; // Track last shoot time for cooldown
         
         this.setupEventListeners();
         this.setupMenuListeners();
@@ -537,8 +538,10 @@ class Game {
             
             // No shooting during countdown
             if (!countdownMode && this.keys[this.player2.controls.shoot]) {
+                const now = Date.now();
                 const player2HasProjectile = this.projectiles.some(p => p.owner === 'player2' && p.active);
-                if (!player2HasProjectile && this.player2.shoot()) {
+                // Add cooldown check to prevent immediate re-firing
+                if (!player2HasProjectile && this.player2.shoot() && now - this.lastShootTime.player2 >= PROJECTILE_COOLDOWN) {
                     this.projectiles.push(new Projectile(
                         this.player2.x,
                         this.player2.y + this.player2.height / 2,
@@ -546,6 +549,7 @@ class Game {
                         this.player2.color,
                         'player2'
                     ));
+                    this.lastShootTime.player2 = now;
                     arcadeAudio.playShootSound();
                 }
             }
@@ -556,8 +560,10 @@ class Game {
         
         // No shooting during countdown
         if (!countdownMode && this.keys[this.player1.controls.shoot]) {
+            const now = Date.now();
             const player1HasProjectile = this.projectiles.some(p => p.owner === 'player1' && p.active);
-            if (!player1HasProjectile && this.player1.shoot()) {
+            // Add cooldown check to prevent immediate re-firing
+            if (!player1HasProjectile && this.player1.shoot() && now - this.lastShootTime.player1 >= PROJECTILE_COOLDOWN) {
                 this.projectiles.push(new Projectile(
                     this.player1.x + this.player1.width,
                     this.player1.y + this.player1.height / 2,
@@ -565,6 +571,7 @@ class Game {
                     this.player1.color,
                     'player1'
                 ));
+                this.lastShootTime.player1 = now;
                 arcadeAudio.playShootSound();
             }
         }
@@ -618,8 +625,10 @@ class Game {
         if (this.gameMode === 'ai' && this.ai) {
             const shouldShoot = this.ai.update(this.ball, this.projectiles, this.player1);
             if (shouldShoot) {
+                const now = Date.now();
                 const player2HasProjectile = this.projectiles.some(p => p.owner === 'player2' && p.active);
-                if (!player2HasProjectile && this.player2.shoot()) {
+                // Add cooldown check for AI as well
+                if (!player2HasProjectile && this.player2.shoot() && now - this.lastShootTime.player2 >= PROJECTILE_COOLDOWN) {
                     this.projectiles.push(new Projectile(
                         this.player2.x,
                         this.player2.y + this.player2.height / 2,
@@ -627,6 +636,7 @@ class Game {
                         this.player2.color,
                         'player2'
                     ));
+                    this.lastShootTime.player2 = now;
                     arcadeAudio.playShootSound();
                 }
             }
