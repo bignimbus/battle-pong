@@ -7,6 +7,9 @@ class ArcadeAudio {
         this.isPlaying = false;
         this.currentNote = 0;
         this.tempo = 140; // BPM similar to Donkey Kong
+        this.musicMuted = false;
+        this.sfxMuted = false;
+        this.loadPreferences();
         
         // Donkey Kong style melody pattern
         this.melody = [
@@ -126,11 +129,14 @@ class ArcadeAudio {
         if (this.isPlaying) return;
         
         this.isPlaying = true;
-        this.playMusicLoop();
+        this.applyPreferences();
+        if (!this.musicMuted) {
+            this.playMusicLoop();
+        }
     }
     
     playMusicLoop() {
-        if (!this.isPlaying) return;
+        if (!this.isPlaying || this.musicMuted) return;
         
         const beatDuration = 60 / this.tempo;
         let currentTime = 0;
@@ -168,7 +174,8 @@ class ArcadeAudio {
     
     // Sound effects
     playHitSound() {
-        if (!this.audioContext) this.init();
+        if (!this.audioContext || this.sfxMuted) return;
+        this.init();
         
         // Quick ascending blip
         const oscillator = this.createOscillator(200, 'square');
@@ -188,7 +195,8 @@ class ArcadeAudio {
     }
     
     playScoreSound() {
-        if (!this.audioContext) this.init();
+        if (!this.audioContext || this.sfxMuted) return;
+        this.init();
         
         // Descending sound for scoring
         const notes = [800, 600, 400, 200];
@@ -198,7 +206,8 @@ class ArcadeAudio {
     }
     
     playShootSound() {
-        if (!this.audioContext) this.init();
+        if (!this.audioContext || this.sfxMuted) return;
+        this.init();
         
         // Laser-like sound
         const oscillator = this.createOscillator(1000, 'sawtooth');
@@ -218,7 +227,8 @@ class ArcadeAudio {
     }
     
     playImmobilizeSound() {
-        if (!this.audioContext) this.init();
+        if (!this.audioContext || this.sfxMuted) return;
+        this.init();
         
         // Buzzing sound for immobilization
         const oscillator = this.createOscillator(50, 'square');
@@ -247,7 +257,8 @@ class ArcadeAudio {
     }
     
     playGameStartSound() {
-        if (!this.audioContext) this.init();
+        if (!this.audioContext || this.sfxMuted) return;
+        this.init();
         
         // Rising fanfare
         const notes = [200, 300, 400, 500, 600];
@@ -257,7 +268,8 @@ class ArcadeAudio {
     }
     
     playGameOverSound() {
-        if (!this.audioContext) this.init();
+        if (!this.audioContext || this.sfxMuted) return;
+        this.init();
         
         // Victory fanfare
         const notes = [
@@ -273,6 +285,43 @@ class ArcadeAudio {
         notes.forEach(note => {
             this.playNote(note.freq, 0.2, this.sfxGain, 'square', note.delay);
         });
+    }
+    
+    toggleMusic() {
+        this.musicMuted = !this.musicMuted;
+        if (this.musicGain) {
+            this.musicGain.gain.value = this.musicMuted ? 0 : 0.5;
+        }
+        this.savePreferences();
+        return !this.musicMuted;
+    }
+    
+    toggleSFX() {
+        this.sfxMuted = !this.sfxMuted;
+        if (this.sfxGain) {
+            this.sfxGain.gain.value = this.sfxMuted ? 0 : 0.7;
+        }
+        this.savePreferences();
+        return !this.sfxMuted;
+    }
+    
+    savePreferences() {
+        localStorage.setItem('battlePongMusicMuted', this.musicMuted);
+        localStorage.setItem('battlePongSFXMuted', this.sfxMuted);
+    }
+    
+    loadPreferences() {
+        this.musicMuted = localStorage.getItem('battlePongMusicMuted') === 'true';
+        this.sfxMuted = localStorage.getItem('battlePongSFXMuted') === 'true';
+    }
+    
+    applyPreferences() {
+        if (this.musicGain) {
+            this.musicGain.gain.value = this.musicMuted ? 0 : 0.5;
+        }
+        if (this.sfxGain) {
+            this.sfxGain.gain.value = this.sfxMuted ? 0 : 0.7;
+        }
     }
 }
 

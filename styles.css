@@ -332,6 +332,53 @@ body {
     margin-top: 20px;
 }
 
+.audio-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+}
+
+.audio-toggle {
+    padding: 10px 15px;
+    background: #000000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 140px;
+}
+
+.audio-toggle:hover {
+    background: #333333;
+}
+
+.audio-toggle.muted {
+    color: #666666;
+    border-color: #666666;
+}
+
+.audio-toggle.muted .toggle-icon {
+    opacity: 0.3;
+}
+
+.toggle-icon {
+    font-size: 1.2em;
+}
+
+.toggle-label {
+    white-space: nowrap;
+    width: 80px;
+    display: inline-block;
+}
+
 .hit-counter {
     display: flex;
     align-items: center;

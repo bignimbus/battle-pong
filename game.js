@@ -10,6 +10,8 @@ const player2Name = document.getElementById('player2Name');
 const player2Controls = document.getElementById('player2Controls');
 const hitValue = document.getElementById('hitValue');
 const hitBarFill = document.getElementById('hitBarFill');
+const musicToggle = document.getElementById('musicToggle');
+const sfxToggle = document.getElementById('sfxToggle');
 
 const twoPlayerBtn = document.getElementById('twoPlayerBtn');
 const aiPlayerBtn = document.getElementById('aiPlayerBtn');
@@ -642,5 +644,48 @@ class Game {
     }
 }
 
+// Initialize audio toggle buttons
+function initAudioControls() {
+    // Set initial state based on saved preferences
+    updateMusicToggle(!arcadeAudio.musicMuted);
+    updateSFXToggle(!arcadeAudio.sfxMuted);
+    
+    musicToggle.addEventListener('click', () => {
+        const isOn = arcadeAudio.toggleMusic();
+        updateMusicToggle(isOn);
+        if (isOn && game.gameState === 'playing') {
+            arcadeAudio.playMusicLoop();
+        }
+    });
+    
+    sfxToggle.addEventListener('click', () => {
+        const isOn = arcadeAudio.toggleSFX();
+        updateSFXToggle(isOn);
+    });
+}
+
+function updateMusicToggle(isOn) {
+    const label = musicToggle.querySelector('.toggle-label');
+    if (isOn) {
+        musicToggle.classList.remove('muted');
+        label.textContent = 'Music: ON';
+    } else {
+        musicToggle.classList.add('muted');
+        label.textContent = 'Music: OFF';
+    }
+}
+
+function updateSFXToggle(isOn) {
+    const label = sfxToggle.querySelector('.toggle-label');
+    if (isOn) {
+        sfxToggle.classList.remove('muted');
+        label.textContent = 'SFX: ON';
+    } else {
+        sfxToggle.classList.add('muted');
+        label.textContent = 'SFX: OFF';
+    }
+}
+
 const game = new Game();
+initAudioControls();
 game.run();
