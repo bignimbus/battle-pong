@@ -587,7 +587,8 @@ class Game {
             // When freeze ends, reset ball and start countdown
             if (this.freezeTimer === 0) {
                 this.flashingPaddle = null;
-                const towardsPlayer2 = this.lastScorer === 'player1';
+                // Ball moves toward the scorer (disadvantage for scoring)
+                const towardsPlayer2 = this.lastScorer === 'player2';
                 this.ball.reset(towardsPlayer2);
                 this.updateHitCounter();
                 this.startCountdown();
