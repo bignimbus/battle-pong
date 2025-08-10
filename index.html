@@ -68,6 +68,15 @@
         
         <canvas id="gameCanvas"></canvas>
         
+        <div class="hit-counter" id="hitCounter">
+            <span class="hit-label">Ball Hits:</span>
+            <span class="hit-value" id="hitValue">0</span>
+            <span class="hit-max">/10</span>
+            <div class="hit-bar">
+                <div class="hit-bar-fill" id="hitBarFill"></div>
+            </div>
+        </div>
+        
         <div class="game-status" id="gameStatus">
             <div id="statusMessage">Press SPACE to start!</div>
         </div>
@@ -75,6 +84,7 @@
         <button class="back-to-menu" id="menuBtn">Main Menu</button>
     </div>
     
+    <script src="audio.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

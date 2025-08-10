@@ -8,6 +8,8 @@ const score1Element = document.getElementById('score1');
 const score2Element = document.getElementById('score2');
 const player2Name = document.getElementById('player2Name');
 const player2Controls = document.getElementById('player2Controls');
+const hitValue = document.getElementById('hitValue');
+const hitBarFill = document.getElementById('hitBarFill');
 
 const twoPlayerBtn = document.getElementById('twoPlayerBtn');
 const aiPlayerBtn = document.getElementById('aiPlayerBtn');
@@ -55,21 +57,14 @@ class Paddle {
     }
 
     draw() {
-        ctx.save();
+        ctx.fillStyle = this.immobilized ? '#808080' : this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
         
         if (this.immobilized) {
-            ctx.globalAlpha = 0.5;
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 2;
             ctx.strokeRect(this.x - 2, this.y - 2, this.width + 4, this.height + 4);
         }
-        
-        ctx.fillStyle = this.color;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        ctx.restore();
     }
 
     immobilize() {
@@ -99,6 +94,9 @@ class Ball {
         this.dx = Math.cos(angle) * this.speed * (towardsPlayer2 ? 1 : -1);
         this.dy = Math.sin(angle) * this.speed;
         this.trail = [];
+        this.hitCount = 0;
+        this.flashEffect = 0;
+        this.maxHits = 10;
     }
 
     update() {
@@ -124,31 +122,49 @@ class Ball {
     }
 
     draw() {
+        // Simple trail
         this.trail.forEach((point, index) => {
-            ctx.save();
-            ctx.globalAlpha = index / this.trail.length * 0.5;
             ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, this.size * (index / this.trail.length), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            ctx.globalAlpha = index / this.trail.length * 0.3;
+            ctx.fillRect(point.x - this.size/2, point.y - this.size/2, this.size, this.size);
         });
+        ctx.globalAlpha = 1;
 
-        ctx.save();
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        // Flash effect
+        if (this.flashEffect > 0) {
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(this.x - this.size * 1.5, this.y - this.size * 1.5, this.size * 3, this.size * 3);
+            this.flashEffect -= 0.1;
+        }
+        
+        // Draw square ball with color based on hits
+        const intensity = Math.min(this.hitCount / this.maxHits, 1);
+        if (intensity > 0.66) {
+            ctx.fillStyle = '#ff0000';
+        } else if (intensity > 0.33) {
+            ctx.fillStyle = '#ffff00';
+        } else {
+            ctx.fillStyle = '#ffffff';
+        }
+        ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
     }
 
     randomizeDirection() {
-        const angle = Math.random() * Math.PI * 2;
-        this.speed = Math.min(this.speed + BALL_SPEED_INCREMENT, INITIAL_BALL_SPEED * 3);
-        this.dx = Math.cos(angle) * this.speed;
-        this.dy = Math.sin(angle) * this.speed;
+        if (this.hitCount < this.maxHits) {
+            this.hitCount++;
+            this.flashEffect = 1.0;
+            const angle = Math.random() * Math.PI * 2;
+            this.speed = Math.min(this.speed + BALL_SPEED_INCREMENT, INITIAL_BALL_SPEED * 3);
+            this.dx = Math.cos(angle) * this.speed;
+            this.dy = Math.sin(angle) * this.speed;
+        } else {
+            // Max hits reached, just randomize direction without speed increase
+            this.flashEffect = 0.5;
+            const currentSpeed = Math.sqrt(this.dx * this.dx + this.dy * this.dy);
+            const angle = Math.random() * Math.PI * 2;
+            this.dx = Math.cos(angle) * currentSpeed;
+            this.dy = Math.sin(angle) * currentSpeed;
+        }
     }
 
     checkPaddleCollision(paddle) {
@@ -182,14 +198,8 @@ class Projectile {
     }
 
     draw() {
-        ctx.save();
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
     }
 
     checkBallCollision(ball) {
@@ -404,6 +414,7 @@ class Game {
 
         menuBtn.addEventListener('click', () => {
             this.gameState = 'menu';
+            arcadeAudio.stopMusic();
             this.showTitleScreen();
         });
 
@@ -453,6 +464,7 @@ class Game {
         this.player2.immobilized = false;
         statusMessage.textContent = 'Press SPACE to start!';
         this.updateScore();
+        this.updateHitCounter();
     }
 
     start() {
@@ -460,6 +472,8 @@ class Game {
         this.ball.reset();
         this.projectiles = [];
         statusMessage.textContent = '';
+        arcadeAudio.playGameStartSound();
+        arcadeAudio.startMusic();
     }
 
     handleInput() {
@@ -480,6 +494,7 @@ class Game {
                         this.player2.color,
                         'player2'
                     ));
+                    arcadeAudio.playShootSound();
                 }
             }
         }
@@ -497,6 +512,7 @@ class Game {
                     this.player1.color,
                     'player1'
                 ));
+                arcadeAudio.playShootSound();
             }
         }
     }
@@ -518,6 +534,7 @@ class Game {
                         this.player2.color,
                         'player2'
                     ));
+                    arcadeAudio.playShootSound();
                 }
             }
         }
@@ -531,16 +548,20 @@ class Game {
             
             if (projectile.checkBallCollision(this.ball)) {
                 this.ball.randomizeDirection();
+                this.updateHitCounter();
+                arcadeAudio.playHitSound();
                 return false;
             }
             
             if (projectile.dx > 0 && projectile.checkPaddleCollision(this.player2)) {
                 this.player2.immobilize();
+                arcadeAudio.playImmobilizeSound();
                 return false;
             }
             
             if (projectile.dx < 0 && projectile.checkPaddleCollision(this.player1)) {
                 this.player1.immobilize();
+                arcadeAudio.playImmobilizeSound();
                 return false;
             }
             
@@ -550,15 +571,19 @@ class Game {
         if (this.ball.checkPaddleCollision(this.player1)) {
             this.score2++;
             this.updateScore();
+            arcadeAudio.playScoreSound();
             this.checkWin();
             this.ball.reset(true);
+            this.updateHitCounter();
         }
         
         if (this.ball.checkPaddleCollision(this.player2)) {
             this.score1++;
             this.updateScore();
+            arcadeAudio.playScoreSound();
             this.checkWin();
             this.ball.reset(false);
+            this.updateHitCounter();
         }
     }
 
@@ -567,30 +592,39 @@ class Game {
         score2Element.textContent = this.score2;
     }
 
+    updateHitCounter() {
+        if (hitValue && hitBarFill) {
+            hitValue.textContent = this.ball.hitCount;
+            const percentage = (this.ball.hitCount / this.ball.maxHits) * 100;
+            hitBarFill.style.width = percentage + '%';
+        }
+    }
+
     checkWin() {
         if (this.score1 >= WIN_SCORE) {
             this.gameState = 'ended';
+            arcadeAudio.stopMusic();
+            arcadeAudio.playGameOverSound();
             statusMessage.innerHTML = '<span class="winner-message" style="color: #00ffff;">Player 1 Wins! Press SPACE to play again</span>';
         } else if (this.score2 >= WIN_SCORE) {
             this.gameState = 'ended';
+            arcadeAudio.stopMusic();
+            arcadeAudio.playGameOverSound();
             const winner = this.gameMode === 'ai' ? `AI Level ${this.aiDifficulty}` : 'Player 2';
             statusMessage.innerHTML = `<span class="winner-message" style="color: #ff00ff;">${winner} Wins! Press SPACE to play again</span>`;
         }
     }
 
     draw() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        // Clear with solid black
+        ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([10, 10]);
-        ctx.beginPath();
-        ctx.moveTo(canvas.width / 2, 0);
-        ctx.lineTo(canvas.width / 2, canvas.height);
-        ctx.stroke();
-        ctx.restore();
+        // Simple dotted center line
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < canvas.height; i += 20) {
+            ctx.fillRect(canvas.width / 2 - 2, i, 4, 10);
+        }
         
         this.player1.draw();
         this.player2.draw();

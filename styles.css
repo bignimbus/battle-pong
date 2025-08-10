@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Courier New', monospace;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+    background: #000000;
     color: #ffffff;
     display: flex;
     justify-content: center;
@@ -127,9 +127,8 @@ body {
 }
 
 #gameCanvas {
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), 0 0 60px rgba(255, 0, 255, 0.2);
-    background: radial-gradient(ellipse at center, rgba(16, 16, 32, 0.9), rgba(0, 0, 0, 0.95));
+    border: 2px solid #ffffff;
+    background: #000000;
     max-width: 95vw;
     max-height: 70vh;
     width: auto;
@@ -331,4 +330,56 @@ body {
 
 .back-to-menu {
     margin-top: 20px;
+}
+
+.hit-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    font-family: 'Courier New', monospace;
+    color: #ffffff;
+}
+
+.hit-label {
+    font-size: 1.2em;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.hit-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    min-width: 40px;
+    text-align: center;
+}
+
+.hit-max {
+    font-size: 1.5em;
+    opacity: 0.6;
+}
+
+.hit-bar {
+    width: 200px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-left: 20px;
+}
+
+.hit-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: #00ffff;
+    transition: width 0.3s ease;
 }
