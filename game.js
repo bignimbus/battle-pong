@@ -406,14 +406,11 @@ class Game {
             this.gameMode = 'twoPlayer';
             this.showGameScreen();
             player2Name.textContent = 'Player 2';
-            player2Controls.innerHTML = `
-                <h3>Player 2</h3>
-                <p>Move: ↑/↓</p>
-                <p>Shoot: ←</p>
-            `;
+            player2Controls.textContent = '↑/↓ • ←';
         });
 
         aiPlayerBtn.addEventListener('click', () => {
+            this.gameMode = 'ai';
             this.showDifficultyScreen();
         });
 
@@ -434,10 +431,7 @@ class Game {
                 this.ai = new AI(this.player2, this.aiDifficulty);
                 this.showGameScreen();
                 player2Name.textContent = `AI (Lvl ${this.aiDifficulty})`;
-                player2Controls.innerHTML = `
-                    <h3>AI Level ${this.aiDifficulty}</h3>
-                    <p>Controlled by AI</p>
-                `;
+                player2Controls.textContent = 'AI Controlled';
             });
         });
     }
