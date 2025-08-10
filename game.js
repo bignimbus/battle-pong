@@ -152,10 +152,30 @@ class Ball {
     }
 
     randomizeDirection() {
+        // Generate angle avoiding too vertical (near 90° or 270°)
+        const minHorizontalAngle = Math.PI / 6; // 30 degrees from vertical
+        let angle;
+        
+        // Pick a random quadrant and generate angle within safe range
+        const quadrant = Math.floor(Math.random() * 4);
+        switch(quadrant) {
+            case 0: // Top-right
+                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + minHorizontalAngle;
+                break;
+            case 1: // Top-left
+                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + Math.PI/2 + minHorizontalAngle;
+                break;
+            case 2: // Bottom-left
+                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + Math.PI + minHorizontalAngle;
+                break;
+            case 3: // Bottom-right
+                angle = Math.random() * (Math.PI/2 - 2*minHorizontalAngle) + 3*Math.PI/2 + minHorizontalAngle;
+                break;
+        }
+        
         if (this.hitCount < this.maxHits) {
             this.hitCount++;
             this.flashEffect = 1.0;
-            const angle = Math.random() * Math.PI * 2;
             this.speed = Math.min(this.speed + BALL_SPEED_INCREMENT, INITIAL_BALL_SPEED * 3);
             this.dx = Math.cos(angle) * this.speed;
             this.dy = Math.sin(angle) * this.speed;
@@ -163,7 +183,6 @@ class Ball {
             // Max hits reached, just randomize direction without speed increase
             this.flashEffect = 0.5;
             const currentSpeed = Math.sqrt(this.dx * this.dx + this.dy * this.dy);
-            const angle = Math.random() * Math.PI * 2;
             this.dx = Math.cos(angle) * currentSpeed;
             this.dy = Math.sin(angle) * currentSpeed;
         }
