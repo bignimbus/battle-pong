@@ -357,7 +357,7 @@ class Game {
         this.player1 = new Paddle(40, canvas.height / 2 - PADDLE_HEIGHT / 2, '#00ffff', {
             up: 'KeyW',
             down: 'KeyS',
-            shoot: 'KeyQ'
+            shoot: 'KeyD'
         });
         
         this.player2 = new Paddle(canvas.width - 40 - PADDLE_WIDTH, canvas.height / 2 - PADDLE_HEIGHT / 2, '#ff00ff', {
