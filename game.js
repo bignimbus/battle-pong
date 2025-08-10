@@ -408,6 +408,8 @@ class Game {
         this.isPaused = false;
         this.countdownTimer = 0;
         this.countdownValue = 0;
+        this.impactEffect = { x: 0, y: 0, radius: 0, opacity: 0 };
+        this.scoreFlash = { player1: 0, player2: 0 };
         
         this.setupEventListeners();
         this.setupMenuListeners();
@@ -563,6 +565,22 @@ class Game {
     update() {
         if (this.gameState !== 'playing' || this.isPaused) return;
         
+        // Update impact effect
+        if (this.impactEffect.opacity > 0) {
+            this.impactEffect.radius += 3;
+            this.impactEffect.opacity -= 0.02;
+        }
+        
+        // Update score flash
+        if (this.scoreFlash.player1 > 0) {
+            this.scoreFlash.player1--;
+            this.updateScore();
+        }
+        if (this.scoreFlash.player2 > 0) {
+            this.scoreFlash.player2--;
+            this.updateScore();
+        }
+        
         // Handle countdown after scoring
         if (this.countdownTimer > 0) {
             this.countdownTimer--;
@@ -638,6 +656,13 @@ class Game {
         
         if (this.ball.checkPaddleCollision(this.player1)) {
             this.score2++;
+            this.scoreFlash.player2 = 60; // Flash for 1 second at 60fps
+            this.impactEffect = { 
+                x: this.ball.x, 
+                y: this.ball.y, 
+                radius: 20, 
+                opacity: 1.0 
+            };
             this.updateScore();
             arcadeAudio.playScoreSound();
             this.checkWin();
@@ -651,6 +676,13 @@ class Game {
         
         if (this.ball.checkPaddleCollision(this.player2)) {
             this.score1++;
+            this.scoreFlash.player1 = 60; // Flash for 1 second at 60fps
+            this.impactEffect = { 
+                x: this.ball.x, 
+                y: this.ball.y, 
+                radius: 20, 
+                opacity: 1.0 
+            };
             this.updateScore();
             arcadeAudio.playScoreSound();
             this.checkWin();
@@ -666,6 +698,25 @@ class Game {
     updateScore() {
         score1Element.textContent = this.score1;
         score2Element.textContent = this.score2;
+        
+        // Apply pulse animation
+        if (this.scoreFlash.player1 > 0) {
+            const scale = 1 + (this.scoreFlash.player1 / 60) * 0.5;
+            score1Element.style.transform = `scale(${scale})`;
+            score1Element.style.color = '#ffff00';
+        } else {
+            score1Element.style.transform = 'scale(1)';
+            score1Element.style.color = '';
+        }
+        
+        if (this.scoreFlash.player2 > 0) {
+            const scale = 1 + (this.scoreFlash.player2 / 60) * 0.5;
+            score2Element.style.transform = `scale(${scale})`;
+            score2Element.style.color = '#ffff00';
+        } else {
+            score2Element.style.transform = 'scale(1)';
+            score2Element.style.color = '';
+        }
     }
 
     updateHitCounter() {
@@ -695,6 +746,21 @@ class Game {
         // Clear with solid black
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw impact effect (ripple)
+        if (this.impactEffect.opacity > 0) {
+            ctx.strokeStyle = `rgba(255, 255, 0, ${this.impactEffect.opacity})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(this.impactEffect.x, this.impactEffect.y, this.impactEffect.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner ripple
+            ctx.strokeStyle = `rgba(255, 255, 255, ${this.impactEffect.opacity * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(this.impactEffect.x, this.impactEffect.y, this.impactEffect.radius * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+        }
         
         // Simple dotted center line
         ctx.fillStyle = '#ffffff';
