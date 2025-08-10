@@ -419,6 +419,9 @@ class Game {
         this.flashingPaddle = null; // 'player1' or 'player2'
         this.lastScorer = null; // Track who scored last
         this.lastShootTime = { player1: 0, player2: 0 }; // Track last shoot time for cooldown
+        this.victoryAnimation = null; // Victory animation state
+        this.victoryParticles = []; // Particles for victory effect
+        this.finalScoreWinner = null; // Track winner for transition state
         
         this.setupEventListeners();
         this.setupMenuListeners();
@@ -514,6 +517,8 @@ class Game {
         this.player2.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
         this.player1.immobilized = false;
         this.player2.immobilized = false;
+        this.victoryAnimation = null;
+        this.victoryParticles = [];
         statusMessage.textContent = 'Press SPACE to start!';
         this.updateScore();
         this.updateHitCounter();
@@ -578,14 +583,33 @@ class Game {
     }
 
     update() {
-        if (this.gameState !== 'playing' || this.isPaused) return;
+        if ((this.gameState !== 'playing' && this.gameState !== 'showing_final_score') || this.isPaused) return;
+        
+        // If showing final score, just decrement freeze timer but don't update game
+        if (this.gameState === 'showing_final_score') {
+            if (this.freezeTimer > 0) {
+                this.freezeTimer--;
+                // Auto-transition to victory screen when freeze ends
+                if (this.freezeTimer === 0) {
+                    this.gameState = 'ended';
+                    arcadeAudio.stopMusic();
+                    arcadeAudio.playGameOverSound();
+                    this.startVictoryAnimation(this.finalScoreWinner);
+                    const winner = this.finalScoreWinner === 'player1' ? 'Player 1' : 
+                                  (this.gameMode === 'ai' ? `AI Level ${this.aiDifficulty}` : 'Player 2');
+                    const color = this.finalScoreWinner === 'player1' ? '#00ffff' : '#ff00ff';
+                    statusMessage.innerHTML = `<span class="winner-message" style="color: ${color};">${winner} Wins! Press SPACE to play again</span>`;
+                }
+            }
+            return; // Don't update anything else when showing final score
+        }
         
         // Handle freeze period after scoring
         if (this.freezeTimer > 0) {
             this.freezeTimer--;
             
-            // When freeze ends, reset ball and start countdown
-            if (this.freezeTimer === 0) {
+            // When freeze ends, reset ball and start countdown (unless game is over)
+            if (this.freezeTimer === 0 && this.gameState === 'playing') {
                 this.flashingPaddle = null;
                 // Ball moves toward the scorer (disadvantage for scoring)
                 const towardsPlayer2 = this.lastScorer === 'player2';
@@ -716,16 +740,69 @@ class Game {
 
     checkWin() {
         if (this.score1 >= WIN_SCORE) {
-            this.gameState = 'ended';
-            arcadeAudio.stopMusic();
-            arcadeAudio.playGameOverSound();
-            statusMessage.innerHTML = '<span class="winner-message" style="color: #00ffff;">Player 1 Wins! Press SPACE to play again</span>';
+            this.gameState = 'showing_final_score';
+            this.finalScoreWinner = 'player1';
+            statusMessage.innerHTML = ''; // Clear status, let the canvas show "Player Scores!"
         } else if (this.score2 >= WIN_SCORE) {
-            this.gameState = 'ended';
-            arcadeAudio.stopMusic();
-            arcadeAudio.playGameOverSound();
-            const winner = this.gameMode === 'ai' ? `AI Level ${this.aiDifficulty}` : 'Player 2';
-            statusMessage.innerHTML = `<span class="winner-message" style="color: #ff00ff;">${winner} Wins! Press SPACE to play again</span>`;
+            this.gameState = 'showing_final_score';
+            this.finalScoreWinner = 'player2';
+            statusMessage.innerHTML = ''; // Clear status, let the canvas show "Player Scores!"
+        }
+    }
+    
+    startVictoryAnimation(winner) {
+        this.victoryAnimation = {
+            winner: winner,
+            timer: 0
+        };
+        
+        // Create victory particles
+        const winnerPaddle = winner === 'player1' ? this.player1 : this.player2;
+        const color = winner === 'player1' ? '#00ffff' : '#ff00ff';
+        
+        for (let i = 0; i < 50; i++) {
+            this.victoryParticles.push({
+                x: winnerPaddle.x + winnerPaddle.width / 2,
+                y: winnerPaddle.y + winnerPaddle.height / 2,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                size: Math.random() * 8 + 4,
+                color: color,
+                life: 1.0
+            });
+        }
+    }
+    
+    updateVictoryAnimation() {
+        if (!this.victoryAnimation) return;
+        
+        this.victoryAnimation.timer++;
+        
+        // Update particles
+        this.victoryParticles = this.victoryParticles.filter(particle => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += 0.3; // Gravity
+            particle.life -= 0.015;
+            return particle.life > 0;
+        });
+        
+        // Add new particles periodically
+        if (this.victoryAnimation.timer % 10 === 0 && this.victoryParticles.length < 100) {
+            const winnerPaddle = this.victoryAnimation.winner === 'player1' ? this.player1 : this.player2;
+            const color = this.victoryAnimation.winner === 'player1' ? '#00ffff' : '#ff00ff';
+            
+            for (let i = 0; i < 5; i++) {
+                this.victoryParticles.push({
+                    x: winnerPaddle.x + winnerPaddle.width / 2,
+                    y: winnerPaddle.y + winnerPaddle.height / 2,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: -Math.random() * 8 - 2,
+                    size: Math.random() * 6 + 3,
+                    color: color,
+                    life: 1.0
+                });
+            }
         }
     }
 
@@ -740,15 +817,24 @@ class Game {
             ctx.fillRect(canvas.width / 2 - 2, i, 4, 10);
         }
         
-        // Draw paddles (with flashing if needed)
+        // Draw particles behind paddles
+        this.victoryParticles.forEach(particle => {
+            ctx.globalAlpha = particle.life;
+            ctx.fillStyle = particle.color;
+            ctx.fillRect(particle.x - particle.size/2, particle.y - particle.size/2, particle.size, particle.size);
+        });
+        ctx.globalAlpha = 1;
+        
+        // Draw paddles
         this.player1.draw(this.flashingPaddle === 'player1', this.freezeTimer);
         this.player2.draw(this.flashingPaddle === 'player2', this.freezeTimer);
+        
         this.ball.draw();
         
         this.projectiles.forEach(projectile => projectile.draw());
         
-        // Draw score display during freeze
-        if (this.freezeTimer > 0 && this.lastScorer) {
+        // Draw score display during freeze (including final score state)
+        if (this.freezeTimer > 0 && this.lastScorer && (this.gameState === 'playing' || this.gameState === 'showing_final_score')) {
             ctx.fillStyle = '#ffff00';
             ctx.font = 'bold 48px Courier New';
             ctx.textAlign = 'center';
@@ -799,6 +885,51 @@ class Game {
             ctx.textAlign = 'left';
             ctx.textBaseline = 'alphabetic';
         }
+        
+        // Draw victory screen
+        if (this.victoryAnimation) {
+            // Big GAME OVER text
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Rainbow effect for GAME OVER (no pulsing)
+            const colors = ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3'];
+            const colorIndex = Math.floor(this.victoryAnimation.timer / 5) % colors.length;
+            ctx.fillStyle = colors[colorIndex];
+            ctx.font = 'bold 72px Courier New';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 150);
+            
+            // Winner text with glow
+            const winnerColor = this.victoryAnimation.winner === 'player1' ? '#00ffff' : '#ff00ff';
+            ctx.fillStyle = winnerColor;
+            ctx.font = 'bold 48px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Glow effect
+            ctx.shadowColor = winnerColor;
+            ctx.shadowBlur = 20 + Math.sin(this.victoryAnimation.timer * 0.1) * 10;
+            
+            const winnerName = this.victoryAnimation.winner === 'player1' ? 'PLAYER 1' : 
+                               (this.gameMode === 'ai' ? `AI LEVEL ${this.aiDifficulty}` : 'PLAYER 2');
+            ctx.fillText(`${winnerName} WINS!`, canvas.width / 2, canvas.height / 2 - 50);
+            
+            // Final score
+            ctx.shadowBlur = 0;
+            ctx.font = 'bold 64px Courier New';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(`${this.score1} - ${this.score2}`, canvas.width / 2, canvas.height / 2 + 30);
+            
+            // Press space to continue (blinking)
+            if (Math.floor(this.victoryAnimation.timer / 30) % 2 === 0) {
+                ctx.font = '24px Courier New';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('Press SPACE to play again', canvas.width / 2, canvas.height / 2 + 100);
+            }
+            
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
     }
 
     togglePause() {
@@ -821,6 +952,7 @@ class Game {
     
     run() {
         this.update();
+        this.updateVictoryAnimation();
         if (this.gameState !== 'menu') {
             this.draw();
         }
