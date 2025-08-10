@@ -58,8 +58,15 @@ class Paddle {
         }
     }
 
-    draw() {
-        ctx.fillStyle = this.immobilized ? '#808080' : this.color;
+    draw(isFlashing = false, flashTimer = 0) {
+        if (isFlashing) {
+            // Cycle through colors for retro flash effect
+            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#ff00ff', '#ffffff'];
+            const colorIndex = Math.floor(flashTimer / 10) % colors.length;
+            ctx.fillStyle = colors[colorIndex];
+        } else {
+            ctx.fillStyle = this.immobilized ? '#808080' : this.color;
+        }
         ctx.fillRect(this.x, this.y, this.width, this.height);
         
         if (this.immobilized) {
@@ -408,8 +415,9 @@ class Game {
         this.isPaused = false;
         this.countdownTimer = 0;
         this.countdownValue = 0;
-        this.impactEffect = { x: 0, y: 0, radius: 0, opacity: 0 };
-        this.scoreFlash = { player1: 0, player2: 0 };
+        this.freezeTimer = 0;
+        this.flashingPaddle = null; // 'player1' or 'player2'
+        this.lastScorer = null; // Track who scored last
         
         this.setupEventListeners();
         this.setupMenuListeners();
@@ -565,20 +573,19 @@ class Game {
     update() {
         if (this.gameState !== 'playing' || this.isPaused) return;
         
-        // Update impact effect
-        if (this.impactEffect.opacity > 0) {
-            this.impactEffect.radius += 3;
-            this.impactEffect.opacity -= 0.02;
-        }
-        
-        // Update score flash
-        if (this.scoreFlash.player1 > 0) {
-            this.scoreFlash.player1--;
-            this.updateScore();
-        }
-        if (this.scoreFlash.player2 > 0) {
-            this.scoreFlash.player2--;
-            this.updateScore();
+        // Handle freeze period after scoring
+        if (this.freezeTimer > 0) {
+            this.freezeTimer--;
+            
+            // When freeze ends, reset ball and start countdown
+            if (this.freezeTimer === 0) {
+                this.flashingPaddle = null;
+                const towardsPlayer2 = this.lastScorer === 'player1';
+                this.ball.reset(towardsPlayer2);
+                this.updateHitCounter();
+                this.startCountdown();
+            }
+            return; // Don't update anything else during freeze
         }
         
         // Handle countdown after scoring
@@ -656,41 +663,29 @@ class Game {
         
         if (this.ball.checkPaddleCollision(this.player1)) {
             this.score2++;
-            this.scoreFlash.player2 = 60; // Flash for 1 second at 60fps
-            this.impactEffect = { 
-                x: this.ball.x, 
-                y: this.ball.y, 
-                radius: 20, 
-                opacity: 1.0 
-            };
+            this.flashingPaddle = 'player1';
+            this.lastScorer = 'player2';
+            this.freezeTimer = 120; // 2 seconds at 60fps
             this.updateScore();
             arcadeAudio.playScoreSound();
             this.checkWin();
             if (this.gameState === 'playing') { // Only countdown if game not ended
-                this.ball.reset(true);
-                this.updateHitCounter();
                 this.projectiles = []; // Clear all projectiles
-                this.startCountdown();
+                // Don't reset ball or start countdown yet - wait for freeze to end
             }
         }
         
         if (this.ball.checkPaddleCollision(this.player2)) {
             this.score1++;
-            this.scoreFlash.player1 = 60; // Flash for 1 second at 60fps
-            this.impactEffect = { 
-                x: this.ball.x, 
-                y: this.ball.y, 
-                radius: 20, 
-                opacity: 1.0 
-            };
+            this.flashingPaddle = 'player2';
+            this.lastScorer = 'player1';
+            this.freezeTimer = 120; // 2 seconds at 60fps
             this.updateScore();
             arcadeAudio.playScoreSound();
             this.checkWin();
             if (this.gameState === 'playing') { // Only countdown if game not ended
-                this.ball.reset(false);
-                this.updateHitCounter();
                 this.projectiles = []; // Clear all projectiles
-                this.startCountdown();
+                // Don't reset ball or start countdown yet - wait for freeze to end
             }
         }
     }
@@ -698,25 +693,6 @@ class Game {
     updateScore() {
         score1Element.textContent = this.score1;
         score2Element.textContent = this.score2;
-        
-        // Apply pulse animation
-        if (this.scoreFlash.player1 > 0) {
-            const scale = 1 + (this.scoreFlash.player1 / 60) * 0.5;
-            score1Element.style.transform = `scale(${scale})`;
-            score1Element.style.color = '#ffff00';
-        } else {
-            score1Element.style.transform = 'scale(1)';
-            score1Element.style.color = '';
-        }
-        
-        if (this.scoreFlash.player2 > 0) {
-            const scale = 1 + (this.scoreFlash.player2 / 60) * 0.5;
-            score2Element.style.transform = `scale(${scale})`;
-            score2Element.style.color = '#ffff00';
-        } else {
-            score2Element.style.transform = 'scale(1)';
-            score2Element.style.color = '';
-        }
     }
 
     updateHitCounter() {
@@ -747,32 +723,36 @@ class Game {
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Draw impact effect (ripple)
-        if (this.impactEffect.opacity > 0) {
-            ctx.strokeStyle = `rgba(255, 255, 0, ${this.impactEffect.opacity})`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(this.impactEffect.x, this.impactEffect.y, this.impactEffect.radius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Inner ripple
-            ctx.strokeStyle = `rgba(255, 255, 255, ${this.impactEffect.opacity * 0.5})`;
-            ctx.beginPath();
-            ctx.arc(this.impactEffect.x, this.impactEffect.y, this.impactEffect.radius * 0.6, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        
         // Simple dotted center line
         ctx.fillStyle = '#ffffff';
         for (let i = 0; i < canvas.height; i += 20) {
             ctx.fillRect(canvas.width / 2 - 2, i, 4, 10);
         }
         
-        this.player1.draw();
-        this.player2.draw();
+        // Draw paddles (with flashing if needed)
+        this.player1.draw(this.flashingPaddle === 'player1', this.freezeTimer);
+        this.player2.draw(this.flashingPaddle === 'player2', this.freezeTimer);
         this.ball.draw();
         
         this.projectiles.forEach(projectile => projectile.draw());
+        
+        // Draw score display during freeze
+        if (this.freezeTimer > 0 && this.lastScorer) {
+            ctx.fillStyle = '#ffff00';
+            ctx.font = 'bold 48px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const scorerName = this.lastScorer === 'player1' ? 'Player 1' : 
+                               (this.gameMode === 'ai' ? `AI Level ${this.aiDifficulty}` : 'Player 2');
+            ctx.fillText(`${scorerName} Scores!`, canvas.width / 2, canvas.height / 2 - 100);
+            
+            ctx.font = 'bold 72px Courier New';
+            ctx.fillText(`${this.score1} - ${this.score2}`, canvas.width / 2, canvas.height / 2 - 30);
+            
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
         
         // Draw pause indicator
         if (this.isPaused) {
